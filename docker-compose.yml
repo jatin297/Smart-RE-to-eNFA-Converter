@@ -1,0 +1,16 @@
+version: '3'
+
+networks:
+  backend:
+    driver: bridge
+
+services:
+  postgres:
+    image: postgres:12.14
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_PASSWORD=jatinsalgotra
+    volumes:
+      - ./data:/var/lib/postgresql/data
