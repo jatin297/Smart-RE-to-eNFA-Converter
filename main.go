@@ -1,19 +1,17 @@
 package main
 
 import (
+	redis2 "github.com/jatin297/retoenfa/redis"
 	"log"
 )
 
 func main() {
-	//router := gin.Default()
-	//
-	//router.GET("/metrics", gin.WrapH(promhttp.Handler()))
-	//
-
-	//
-	//router.Run(":8080")
-
 	storage, err := NewPostgresStorage()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	client, err := redis2.NewRedisClient()
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -22,6 +20,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	server := NewAPIService(":4500", storage)
+	server := NewAPIService(":4500", storage, client)
 	server.Run()
 }

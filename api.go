@@ -1,12 +1,14 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/mux"
 	"github.com/jatin297/retoenfa/dto"
 	. "github.com/jatin297/retoenfa/metrics"
+	redis2 "github.com/jatin297/retoenfa/redis"
 	"github.com/jatin297/retoenfa/retoenfa"
 	user2 "github.com/jatin297/retoenfa/user"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -18,14 +20,16 @@ import (
 )
 
 type APIService struct {
-	listenAddr string
-	store      Storage
+	listenAddr  string
+	store       Storage
+	redisClient redis2.Client
 }
 
-func NewAPIService(listenAddr string, store Storage) *APIService {
+func NewAPIService(listenAddr string, store Storage, client redis2.Client) *APIService {
 	return &APIService{
-		listenAddr: listenAddr,
-		store:      store,
+		listenAddr:  listenAddr,
+		store:       store,
+		redisClient: client,
 	}
 }
 
@@ -145,9 +149,24 @@ func (s *APIService) handleGetUserByID(w http.ResponseWriter, r *http.Request) e
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return nil
 	}
+
+	key := fmt.Sprintf("GET_USER_BY_KEY##%d", id)
+	val, err := s.redisClient.GET(context.Background(), key)
+	if err == nil {
+		var cachedUser user2.User
+		err = json.Unmarshal([]byte(val), &cachedUser)
+		if err != nil {
+			return err
+		}
+
+		return writeJSON(w, r, http.StatusOK, cachedUser, start)
+	}
+
 	user, err := s.store.GetUserByID(id)
 	if err != nil {
 		return err
+	} else if user == nil {
+		return fmt.Errorf("user not present in db")
 	}
 
 	// if incoming api is to delete
@@ -160,6 +179,13 @@ func (s *APIService) handleGetUserByID(w http.ResponseWriter, r *http.Request) e
 		message := fmt.Errorf("successfully deleted user with id %d", id)
 		return writeJSON(w, r, http.StatusOK, message, start)
 	}
+
+	expiry := 24 * time.Hour
+	err = s.redisClient.SET(context.Background(), key, user, expiry)
+	if err != nil {
+		return err
+	}
+
 	return writeJSON(w, r, http.StatusOK, user, start)
 
 }
