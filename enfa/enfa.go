@@ -161,7 +161,8 @@ func (e *ENFA) ValidateInputSequence(inputs []string) bool {
 func (e *ENFA) GenerateFormattedTransitionTable() []map[string]string {
 	var symbolList []string
 	for symbol := range e.inputSymbols {
-		if symbol == "" {
+		fmt.Println(symbol)
+		if len(symbol) == 0 {
 			symbolList = append(symbolList, "ε")
 		} else {
 			symbolList = append(symbolList, symbol)
@@ -181,8 +182,14 @@ func (e *ENFA) GenerateFormattedTransitionTable() []map[string]string {
 				for dest := range destSet {
 					destList = append(destList, fmt.Sprintf("%d", dest))
 				}
+				if symbol == "" {
+					symbol = "ε"
+				}
 				row[symbol] = strings.Join(destList, ",")
 			} else {
+				if symbol == "" {
+					symbol = "ε"
+				}
 				row[symbol] = "NA"
 			}
 		}
